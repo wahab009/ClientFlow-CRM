@@ -1,6 +1,4 @@
-import { PrismaClient } from '@prisma/client'
-
-const prisma = new PrismaClient()
+import clientService from '../services/clientService.js'
 
 /**
  * Create new client
@@ -10,93 +8,38 @@ export const createClient = async (req, res) => {
     const { name, email, phone, company, status } = req.body
     const userId = req.user.id
 
-    // Validation
-    if (!name) {
-      return res.status(400).json({
-        error: 'Bad Request',
-        message: 'Client name is required'
-      })
-    }
-
-    const client = await prisma.client.create({
-      data: {
-        name,
-        email: email || null,
-        phone: phone || null,
-        company: company || null,
-        status: status || 'active',
-        assignedTo: userId
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
-        }
-      }
-    })
+    const client = await clientService.createClient(
+      { name, email, phone, company, status },
+      userId
+    )
 
     res.status(201).json({
+      success: true,
       message: 'Client created successfully',
       data: client
     })
   } catch (error) {
-    console.error('Error creating client:', error)
-    res.status(500).json({
-      error: 'Internal Server Error',
-      message: error.message
-    })
+    handleServiceError(error, res)
   }
 }
 
 /**
- * Get all clients for current user
+ * Get all clients with search, filter, and pagination
  */
 export const getAllClients = async (req, res) => {
   try {
-    const { status } = req.query
     const userId = req.user.id
     const isAdmin = req.user.role === 'ADMIN'
 
-    const whereClause = {
-      ...(status && { status }),
-      ...(isAdmin ? {} : { assignedTo: userId })
-    }
-
-    const clients = await prisma.client.findMany({
-      where: whereClause,
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
-        },
-        tasks: {
-          select: {
-            id: true,
-            title: true,
-            status: true
-          }
-        }
-      },
-      orderBy: { createdAt: 'desc' }
-    })
+    const result = await clientService.getAllClients(userId, isAdmin, req.query)
 
     res.json({
+      success: true,
       message: 'Clients retrieved successfully',
-      data: clients,
-      total: clients.length
+      ...result
     })
   } catch (error) {
-    console.error('Error fetching clients:', error)
-    res.status(500).json({
-      error: 'Internal Server Error',
-      message: error.message
-    })
+    handleServiceError(error, res)
   }
 }
 
@@ -109,55 +52,15 @@ export const getClientById = async (req, res) => {
     const userId = req.user.id
     const isAdmin = req.user.role === 'ADMIN'
 
-    const client = await prisma.client.findUnique({
-      where: { id },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
-        },
-        tasks: {
-          select: {
-            id: true,
-            title: true,
-            description: true,
-            status: true,
-            priority: true,
-            createdAt: true
-          },
-          orderBy: { createdAt: 'desc' }
-        }
-      }
-    })
-
-    if (!client) {
-      return res.status(404).json({
-        error: 'Not Found',
-        message: 'Client not found'
-      })
-    }
-
-    // Check authorization
-    if (!isAdmin && client.assignedTo !== userId) {
-      return res.status(403).json({
-        error: 'Forbidden',
-        message: 'Cannot access this client'
-      })
-    }
+    const client = await clientService.getClientById(id, userId, isAdmin)
 
     res.json({
+      success: true,
       message: 'Client retrieved successfully',
       data: client
     })
   } catch (error) {
-    console.error('Error fetching client:', error)
-    res.status(500).json({
-      error: 'Internal Server Error',
-      message: error.message
-    })
+    handleServiceError(error, res)
   }
 }
 
@@ -167,58 +70,18 @@ export const getClientById = async (req, res) => {
 export const updateClient = async (req, res) => {
   try {
     const { id } = req.params
-    const { name, email, phone, company, status } = req.body
     const userId = req.user.id
     const isAdmin = req.user.role === 'ADMIN'
 
-    // Check if client exists
-    const client = await prisma.client.findUnique({ where: { id } })
-
-    if (!client) {
-      return res.status(404).json({
-        error: 'Not Found',
-        message: 'Client not found'
-      })
-    }
-
-    // Check authorization
-    if (!isAdmin && client.assignedTo !== userId) {
-      return res.status(403).json({
-        error: 'Forbidden',
-        message: 'Cannot update this client'
-      })
-    }
-
-    const updatedClient = await prisma.client.update({
-      where: { id },
-      data: {
-        ...(name && { name }),
-        ...(email && { email }),
-        ...(phone && { phone }),
-        ...(company && { company }),
-        ...(status && { status })
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
-        }
-      }
-    })
+    const updatedClient = await clientService.updateClient(id, req.body, userId, isAdmin)
 
     res.json({
+      success: true,
       message: 'Client updated successfully',
       data: updatedClient
     })
   } catch (error) {
-    console.error('Error updating client:', error)
-    res.status(500).json({
-      error: 'Internal Server Error',
-      message: error.message
-    })
+    handleServiceError(error, res)
   }
 }
 
@@ -231,41 +94,49 @@ export const deleteClient = async (req, res) => {
     const userId = req.user.id
     const isAdmin = req.user.role === 'ADMIN'
 
-    // Check if client exists
-    const client = await prisma.client.findUnique({ where: { id } })
-
-    if (!client) {
-      return res.status(404).json({
-        error: 'Not Found',
-        message: 'Client not found'
-      })
-    }
-
-    // Check authorization
-    if (!isAdmin && client.assignedTo !== userId) {
-      return res.status(403).json({
-        error: 'Forbidden',
-        message: 'Cannot delete this client'
-      })
-    }
-
-    // Delete associated tasks first
-    await prisma.task.deleteMany({
-      where: { clientId: id }
-    })
-
-    await prisma.client.delete({
-      where: { id }
-    })
+    await clientService.deleteClient(id, userId, isAdmin)
 
     res.json({
+      success: true,
       message: 'Client deleted successfully'
     })
   } catch (error) {
-    console.error('Error deleting client:', error)
-    res.status(500).json({
-      error: 'Internal Server Error',
-      message: error.message
+    handleServiceError(error, res)
+  }
+}
+
+/**
+ * Helper function to handle service layer errors
+ * @param {Error} error - Error thrown by service
+ * @param {Response} res - Express response object
+ */
+function handleServiceError(error, res) {
+  const message = error.message || 'Unknown error'
+
+  if (message.includes('VALIDATION_ERROR')) {
+    return res.status(400).json({
+      success: false,
+      message: message.replace('VALIDATION_ERROR: ', '')
     })
   }
+
+  if (message === 'CLIENT_NOT_FOUND') {
+    return res.status(404).json({
+      success: false,
+      message: 'Client not found'
+    })
+  }
+
+  if (message === 'UNAUTHORIZED') {
+    return res.status(403).json({
+      success: false,
+      message: 'You do not have permission to access this resource'
+    })
+  }
+
+  console.error('Client Controller Error:', error)
+  res.status(500).json({
+    success: false,
+    message: 'Internal server error'
+  })
 }

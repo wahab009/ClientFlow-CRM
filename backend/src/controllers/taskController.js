@@ -1,6 +1,4 @@
-import { PrismaClient } from '@prisma/client'
-
-const prisma = new PrismaClient()
+import taskService from '../services/taskService.js'
 
 /**
  * Create new task
@@ -10,122 +8,38 @@ export const createTask = async (req, res) => {
     const { title, description, status, priority, clientId } = req.body
     const userId = req.user.id
 
-    // Validation
-    if (!title) {
-      return res.status(400).json({
-        error: 'Bad Request',
-        message: 'Task title is required'
-      })
-    }
-
-    // If task is assigned to a client, verify the client exists and is accessible
-    if (clientId) {
-      const client = await prisma.client.findUnique({
-        where: { id: clientId }
-      })
-
-      if (!client) {
-        return res.status(404).json({
-          error: 'Not Found',
-          message: 'Client not found'
-        })
-      }
-
-      // Check if user has access to this client
-      if (req.user.role !== 'ADMIN' && client.assignedTo !== userId) {
-        return res.status(403).json({
-          error: 'Forbidden',
-          message: 'Cannot create task for this client'
-        })
-      }
-    }
-
-    const task = await prisma.task.create({
-      data: {
-        title,
-        description: description || null,
-        status: status || 'pending',
-        priority: priority || 'medium',
-        userId,
-        clientId: clientId || null
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
-        },
-        client: {
-          select: {
-            id: true,
-            name: true
-          }
-        }
-      }
-    })
+    const task = await taskService.createTask(
+      { title, description, status, priority, clientId },
+      userId
+    )
 
     res.status(201).json({
+      success: true,
       message: 'Task created successfully',
       data: task
     })
   } catch (error) {
-    console.error('Error creating task:', error)
-    res.status(500).json({
-      error: 'Internal Server Error',
-      message: error.message
-    })
+    handleServiceError(error, res)
   }
 }
 
 /**
- * Get all tasks for current user
+ * Get all tasks with search, filter, and pagination
  */
 export const getAllTasks = async (req, res) => {
   try {
-    const { status, priority, clientId } = req.query
     const userId = req.user.id
     const isAdmin = req.user.role === 'ADMIN'
 
-    const whereClause = {
-      ...(status && { status }),
-      ...(priority && { priority }),
-      ...(clientId && { clientId }),
-      ...(isAdmin ? {} : { userId })
-    }
-
-    const tasks = await prisma.task.findMany({
-      where: whereClause,
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
-        },
-        client: {
-          select: {
-            id: true,
-            name: true
-          }
-        }
-      },
-      orderBy: { createdAt: 'desc' }
-    })
+    const result = await taskService.getAllTasks(userId, isAdmin, req.query)
 
     res.json({
+      success: true,
       message: 'Tasks retrieved successfully',
-      data: tasks,
-      total: tasks.length
+      ...result
     })
   } catch (error) {
-    console.error('Error fetching tasks:', error)
-    res.status(500).json({
-      error: 'Internal Server Error',
-      message: error.message
-    })
+    handleServiceError(error, res)
   }
 }
 
@@ -138,51 +52,15 @@ export const getTaskById = async (req, res) => {
     const userId = req.user.id
     const isAdmin = req.user.role === 'ADMIN'
 
-    const task = await prisma.task.findUnique({
-      where: { id },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
-        },
-        client: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
-        }
-      }
-    })
-
-    if (!task) {
-      return res.status(404).json({
-        error: 'Not Found',
-        message: 'Task not found'
-      })
-    }
-
-    // Check authorization
-    if (!isAdmin && task.userId !== userId) {
-      return res.status(403).json({
-        error: 'Forbidden',
-        message: 'Cannot access this task'
-      })
-    }
+    const task = await taskService.getTaskById(id, userId, isAdmin)
 
     res.json({
+      success: true,
       message: 'Task retrieved successfully',
       data: task
     })
   } catch (error) {
-    console.error('Error fetching task:', error)
-    res.status(500).json({
-      error: 'Internal Server Error',
-      message: error.message
-    })
+    handleServiceError(error, res)
   }
 }
 
@@ -192,63 +70,18 @@ export const getTaskById = async (req, res) => {
 export const updateTask = async (req, res) => {
   try {
     const { id } = req.params
-    const { title, description, status, priority } = req.body
     const userId = req.user.id
     const isAdmin = req.user.role === 'ADMIN'
 
-    // Check if task exists
-    const task = await prisma.task.findUnique({ where: { id } })
-
-    if (!task) {
-      return res.status(404).json({
-        error: 'Not Found',
-        message: 'Task not found'
-      })
-    }
-
-    // Check authorization
-    if (!isAdmin && task.userId !== userId) {
-      return res.status(403).json({
-        error: 'Forbidden',
-        message: 'Cannot update this task'
-      })
-    }
-
-    const updatedTask = await prisma.task.update({
-      where: { id },
-      data: {
-        ...(title && { title }),
-        ...(description !== undefined && { description }),
-        ...(status && { status }),
-        ...(priority && { priority })
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
-        },
-        client: {
-          select: {
-            id: true,
-            name: true
-          }
-        }
-      }
-    })
+    const updatedTask = await taskService.updateTask(id, req.body, userId, isAdmin)
 
     res.json({
+      success: true,
       message: 'Task updated successfully',
       data: updatedTask
     })
   } catch (error) {
-    console.error('Error updating task:', error)
-    res.status(500).json({
-      error: 'Internal Server Error',
-      message: error.message
-    })
+    handleServiceError(error, res)
   }
 }
 
@@ -261,36 +94,49 @@ export const deleteTask = async (req, res) => {
     const userId = req.user.id
     const isAdmin = req.user.role === 'ADMIN'
 
-    // Check if task exists
-    const task = await prisma.task.findUnique({ where: { id } })
-
-    if (!task) {
-      return res.status(404).json({
-        error: 'Not Found',
-        message: 'Task not found'
-      })
-    }
-
-    // Check authorization
-    if (!isAdmin && task.userId !== userId) {
-      return res.status(403).json({
-        error: 'Forbidden',
-        message: 'Cannot delete this task'
-      })
-    }
-
-    await prisma.task.delete({
-      where: { id }
-    })
+    await taskService.deleteTask(id, userId, isAdmin)
 
     res.json({
+      success: true,
       message: 'Task deleted successfully'
     })
   } catch (error) {
-    console.error('Error deleting task:', error)
-    res.status(500).json({
-      error: 'Internal Server Error',
-      message: error.message
+    handleServiceError(error, res)
+  }
+}
+
+/**
+ * Helper function to handle service layer errors
+ * @param {Error} error - Error thrown by service
+ * @param {Response} res - Express response object
+ */
+function handleServiceError(error, res) {
+  const message = error.message || 'Unknown error'
+
+  if (message.includes('VALIDATION_ERROR')) {
+    return res.status(400).json({
+      success: false,
+      message: message.replace('VALIDATION_ERROR: ', '')
     })
   }
+
+  if (message === 'TASK_NOT_FOUND') {
+    return res.status(404).json({
+      success: false,
+      message: 'Task not found'
+    })
+  }
+
+  if (message === 'UNAUTHORIZED') {
+    return res.status(403).json({
+      success: false,
+      message: 'You do not have permission to access this resource'
+    })
+  }
+
+  console.error('Task Controller Error:', error)
+  res.status(500).json({
+    success: false,
+    message: 'Internal server error'
+  })
 }
