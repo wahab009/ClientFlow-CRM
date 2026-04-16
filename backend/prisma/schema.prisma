@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -10,13 +7,11 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Role Enum - For User Role-Based Access Control
 enum Role {
   ADMIN
   USER
 }
 
-// User Model - System users with roles and relationships
 model User {
   id        String   @id @default(uuid())
   name      String
@@ -29,7 +24,6 @@ model User {
   updatedAt DateTime @updatedAt
 }
 
-// Client Model - Clients managed by users
 model Client {
   id        String   @id @default(uuid())
   name      String
@@ -37,30 +31,23 @@ model Client {
   phone     String?
   company   String?
   status    String   @default("active")
-
   assignedTo String
   user       User     @relation(fields: [assignedTo], references: [id])
-
   tasks     Task[]
-
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
-// Task Model - Tasks associated with users and clients
 model Task {
   id          String   @id @default(uuid())
   title       String
   description String?
   status      String   @default("pending")
   priority    String   @default("medium")
-
   userId    String
   clientId  String?
-
   user      User     @relation(fields: [userId], references: [id])
   client    Client?  @relation(fields: [clientId], references: [id])
-
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

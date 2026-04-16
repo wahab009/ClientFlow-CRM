@@ -1,4 +1,5 @@
 import taskService from '../services/taskService.js'
+import { success, error } from '../utils/response.js'
 
 /**
  * Create new task
@@ -13,13 +14,9 @@ export const createTask = async (req, res) => {
       userId
     )
 
-    res.status(201).json({
-      success: true,
-      message: 'Task created successfully',
-      data: task
-    })
-  } catch (error) {
-    handleServiceError(error, res)
+    return success(res, task, 201)
+  } catch (err) {
+    return handleServiceError(err, res)
   }
 }
 
@@ -33,13 +30,12 @@ export const getAllTasks = async (req, res) => {
 
     const result = await taskService.getAllTasks(userId, isAdmin, req.query)
 
-    res.json({
-      success: true,
-      message: 'Tasks retrieved successfully',
-      ...result
+    return success(res, {
+      tasks: result.data,
+      pagination: result.pagination
     })
-  } catch (error) {
-    handleServiceError(error, res)
+  } catch (err) {
+    return handleServiceError(err, res)
   }
 }
 
@@ -54,13 +50,9 @@ export const getTaskById = async (req, res) => {
 
     const task = await taskService.getTaskById(id, userId, isAdmin)
 
-    res.json({
-      success: true,
-      message: 'Task retrieved successfully',
-      data: task
-    })
-  } catch (error) {
-    handleServiceError(error, res)
+    return success(res, task)
+  } catch (err) {
+    return handleServiceError(err, res)
   }
 }
 
@@ -75,13 +67,9 @@ export const updateTask = async (req, res) => {
 
     const updatedTask = await taskService.updateTask(id, req.body, userId, isAdmin)
 
-    res.json({
-      success: true,
-      message: 'Task updated successfully',
-      data: updatedTask
-    })
-  } catch (error) {
-    handleServiceError(error, res)
+    return success(res, updatedTask)
+  } catch (err) {
+    return handleServiceError(err, res)
   }
 }
 
@@ -96,47 +84,31 @@ export const deleteTask = async (req, res) => {
 
     await taskService.deleteTask(id, userId, isAdmin)
 
-    res.json({
-      success: true,
-      message: 'Task deleted successfully'
-    })
-  } catch (error) {
-    handleServiceError(error, res)
+    return success(res, {})
+  } catch (err) {
+    return handleServiceError(err, res)
   }
 }
 
 /**
  * Helper function to handle service layer errors
- * @param {Error} error - Error thrown by service
+ * @param {Error} err - Error thrown by service
  * @param {Response} res - Express response object
  */
-function handleServiceError(error, res) {
-  const message = error.message || 'Unknown error'
+function handleServiceError(err, res) {
+  const message = err.message || 'Unknown error'
 
   if (message.includes('VALIDATION_ERROR')) {
-    return res.status(400).json({
-      success: false,
-      message: message.replace('VALIDATION_ERROR: ', '')
-    })
+    return error(res, message.replace('VALIDATION_ERROR: ', ''), 400)
   }
 
   if (message === 'TASK_NOT_FOUND') {
-    return res.status(404).json({
-      success: false,
-      message: 'Task not found'
-    })
+    return error(res, 'Task not found', 404)
   }
 
-  if (message === 'UNAUTHORIZED') {
-    return res.status(403).json({
-      success: false,
-      message: 'You do not have permission to access this resource'
-    })
+  if (message.includes('UNAUTHORIZED')) {
+    return error(res, 'You do not have permission to access this resource', 403)
   }
 
-  console.error('Task Controller Error:', error)
-  res.status(500).json({
-    success: false,
-    message: 'Internal server error'
-  })
+  return error(res, 'Internal server error', 500)
 }

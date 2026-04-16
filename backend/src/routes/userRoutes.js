@@ -8,6 +8,7 @@ import {
   deleteUser
 } from '../controllers/userController.js'
 import { authenticateToken, authorizeRole } from '../middleware/auth.js'
+import { success } from '../utils/response.js'
 
 const router = express.Router()
 
@@ -23,10 +24,7 @@ router.post('/login', loginUser)
 
 // Get user profile
 router.get('/me', authenticateToken, (req, res) => {
-  res.json({
-    message: 'Current user',
-    data: req.user
-  })
+  return success(res, req.user)
 })
 
 // Update own profile

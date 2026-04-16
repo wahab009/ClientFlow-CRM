@@ -32,7 +32,7 @@ export const generateToken = (userId, role) => {
   return jwt.sign(
     { id: userId, role },
     config.JWT_SECRET,
-    { expiresIn: config.JWT_EXPIRE }
+    { expiresIn: config.JWT_EXPIRES_IN }
   )
 }
 

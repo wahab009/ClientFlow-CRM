@@ -1,93 +1,55 @@
 # Frontend - ClientFlow CRM
 
-React + Vite frontend application for ClientFlow CRM.
+React + Vite frontend for ClientFlow CRM.
 
-## 📁 Folder Structure
+## Highlights
 
-```
+- Auth flow with login + self-registration
+- Protected routes (`/dashboard`, `/clients`, `/tasks`)
+- Centralized API layer in `src/api/*` with token interceptor
+- Theme system (dark/light mode with localStorage persistence)
+- SaaS dashboard UI with responsive layout
+- Clients and Tasks full CRUD integration
+
+## Structure
+
+```text
 src/
-├── components/      # Reusable React components
-├── pages/           # Page components (Dashboard, Clients, etc)
-├── services/        # API communication layer
-├── hooks/           # Custom React hooks
-├── utils/           # Utility functions
-├── context/         # React Context for state management
-├── App.jsx          # Main app component
-├── main.jsx         # React entry point
-└── index.css        # Global styles
+├── api/
+├── components/
+├── context/
+├── pages/
+├── utils/
+├── App.jsx
+├── App.css
+├── index.css
+└── main.jsx
 ```
 
-## 🚀 Getting Started
+## Environment
 
-### Install Dependencies
-```bash
-npm install
-```
+Create `.env` from `.env.example`:
 
-### Create Environment File
 ```bash
 cp .env.example .env
 ```
 
-### Start Development Server
-```bash
-npm run dev
-```
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+Required variable:
 
-## 📦 Available Scripts
+- `VITE_API_URL` (example: `http://localhost:5000/api`)
 
-| Command | Description |
-|---------|-------------|
-| `npm run dev` | Start development server with hot reload |
-| `npm run build` | Build for production |
-| `npm run preview` | Preview production build |
-| `npm run lint` | Run ESLint |
+`VITE_API_URL` is required in production builds/runtime and has no localhost fallback in app code.
 
-## 🔧 Configuration
+## Scripts
 
-### Environment Variables
-- `VITE_API_URL` - Backend API URL (default: `http://localhost:5000/api`)
+- `npm run dev` - Start Vite dev server
+- `npm run lint` - Run ESLint
+- `npm run build` - Build production bundle
+- `npm run preview` - Preview production build
 
-### Vite Configuration
-- Port: `3000`
-- API Proxy: Routes `/api` requests to backend
-- React Fast Refresh enabled
+## SPA Routing for Deployment
 
-## 📡 API Integration
+This repo includes:
 
-The frontend uses Axios for API communication:
-
-```javascript
-import apiClient from './services/api'
-
-// Example usage
-const health = await checkHealth()
-```
-
-All requests automatically include JWT token from localStorage if available.
-
-## 🎯 Current Features
-
-- ✅ Dashboard page with stats
-- ✅ Clients page (ready for implementation)
-- ✅ API health check
-- ✅ React Router navigation
-- ✅ Axios client with interceptors
-
-## 📝 Development Notes
-
-- Hot reload works automatically on file changes
-- Environment variables must start with `VITE_` to be exposed to client
-- All API calls go through the `apiClient` for consistent error handling
-- Tokens stored in localStorage for persistence
-
-## 🚀 Deployment
-
-To build for production:
-```bash
-npm run build
-npm run preview
-```
-
-Build output in `dist/` directory is ready for deployment to Vercel, Netlify, etc.
+- `vercel.json` rewrite for Vercel
+- `public/_redirects` for Netlify/static SPA hosting

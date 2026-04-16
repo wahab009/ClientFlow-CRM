@@ -1,45 +1,45 @@
 import { PrismaClient } from '@prisma/client'
 import { hashPassword, comparePassword, generateToken } from '../utils/auth.js'
+import { success, error } from '../utils/response.js'
+import { config } from '../config/index.js'
 
 const prisma = new PrismaClient()
+const isProduction = config.NODE_ENV === 'production'
 
 /**
  * Register new user
  */
 export const registerUser = async (req, res) => {
   try {
-    const { name, email, password, role } = req.body
+    const { name, email, password } = req.body
 
-    // Validation
     if (!name || !email || !password) {
-      return res.status(400).json({
-        error: 'Bad Request',
-        message: 'Name, email, and password are required'
-      })
+      return error(res, 'Name, email, and password are required', 400)
     }
 
-    // Check if user already exists
+    const normalizedName = name.trim()
+    const normalizedEmail = email.trim().toLowerCase()
+
+    if (!normalizedName) {
+      return error(res, 'Name is required', 400)
+    }
+
     const existingUser = await prisma.user.findUnique({
-      where: { email }
+      where: { email: normalizedEmail }
     })
 
     if (existingUser) {
-      return res.status(409).json({
-        error: 'Conflict',
-        message: 'Email already registered'
-      })
+      return error(res, 'Email already registered', 409)
     }
 
-    // Hash password
     const hashedPassword = await hashPassword(password)
 
-    // Create user
     const user = await prisma.user.create({
       data: {
-        name,
-        email,
+        name: normalizedName,
+        email: normalizedEmail,
         password: hashedPassword,
-        role: role || 'USER'
+        role: 'USER'
       },
       select: {
         id: true,
@@ -50,20 +50,14 @@ export const registerUser = async (req, res) => {
       }
     })
 
-    // Generate token
     const token = generateToken(user.id, user.role)
 
-    res.status(201).json({
-      message: 'User registered successfully',
-      user,
-      token
-    })
-  } catch (error) {
-    console.error('Error registering user:', error)
-    res.status(500).json({
-      error: 'Internal Server Error',
-      message: error.message
-    })
+    return success(res, { user, token }, 201)
+  } catch (err) {
+    if (!isProduction) {
+      console.error('Error registering user:', err)
+    }
+    return error(res, 'Internal server error', 500)
   }
 }
 
@@ -74,17 +68,14 @@ export const loginUser = async (req, res) => {
   try {
     const { email, password } = req.body
 
-    // Validation
     if (!email || !password) {
-      return res.status(400).json({
-        error: 'Bad Request',
-        message: 'Email and password are required'
-      })
+      return error(res, 'Email and password are required', 400)
     }
 
-    // Find user
+    const normalizedEmail = email.trim().toLowerCase()
+
     const user = await prisma.user.findUnique({
-      where: { email },
+      where: { email: normalizedEmail },
       select: {
         id: true,
         name: true,
@@ -95,27 +86,18 @@ export const loginUser = async (req, res) => {
     })
 
     if (!user) {
-      return res.status(401).json({
-        error: 'Unauthorized',
-        message: 'Invalid email or password'
-      })
+      return error(res, 'Invalid email or password', 401)
     }
 
-    // Compare password
     const isPasswordValid = await comparePassword(password, user.password)
 
     if (!isPasswordValid) {
-      return res.status(401).json({
-        error: 'Unauthorized',
-        message: 'Invalid email or password'
-      })
+      return error(res, 'Invalid email or password', 401)
     }
 
-    // Generate token
     const token = generateToken(user.id, user.role)
 
-    res.json({
-      message: 'Login successful',
+    return success(res, {
       user: {
         id: user.id,
         name: user.name,
@@ -124,12 +106,11 @@ export const loginUser = async (req, res) => {
       },
       token
     })
-  } catch (error) {
-    console.error('Error logging in user:', error)
-    res.status(500).json({
-      error: 'Internal Server Error',
-      message: error.message
-    })
+  } catch (err) {
+    if (!isProduction) {
+      console.error('Error logging in user:', err)
+    }
+    return error(res, 'Internal server error', 500)
   }
 }
 
@@ -155,17 +136,15 @@ export const getAllUsers = async (req, res) => {
       }
     })
 
-    res.json({
-      message: 'Users retrieved successfully',
-      data: users,
+    return success(res, {
+      users,
       total: users.length
     })
-  } catch (error) {
-    console.error('Error fetching users:', error)
-    res.status(500).json({
-      error: 'Internal Server Error',
-      message: error.message
-    })
+  } catch (err) {
+    if (!isProduction) {
+      console.error('Error fetching users:', err)
+    }
+    return error(res, 'Internal server error', 500)
   }
 }
 
@@ -204,22 +183,15 @@ export const getUserById = async (req, res) => {
     })
 
     if (!user) {
-      return res.status(404).json({
-        error: 'Not Found',
-        message: 'User not found'
-      })
+      return error(res, 'User not found', 404)
     }
 
-    res.json({
-      message: 'User retrieved successfully',
-      data: user
-    })
-  } catch (error) {
-    console.error('Error fetching user:', error)
-    res.status(500).json({
-      error: 'Internal Server Error',
-      message: error.message
-    })
+    return success(res, user)
+  } catch (err) {
+    if (!isProduction) {
+      console.error('Error fetching user:', err)
+    }
+    return error(res, 'Internal server error', 500)
   }
 }
 
@@ -230,33 +202,27 @@ export const updateUser = async (req, res) => {
   try {
     const { id } = req.params
     const { name, email } = req.body
+    const normalizedName = name?.trim()
+    const normalizedEmail = email?.trim().toLowerCase()
 
-    // Verify user owns this profile or is admin
     if (req.user.id !== id && req.user.role !== 'ADMIN') {
-      return res.status(403).json({
-        error: 'Forbidden',
-        message: 'Cannot update other users'
-      })
+      return error(res, 'Cannot update other users', 403)
     }
 
-    // Check if new email already exists
-    if (email) {
+    if (normalizedEmail) {
       const existingUser = await prisma.user.findUnique({
-        where: { email }
+        where: { email: normalizedEmail }
       })
       if (existingUser && existingUser.id !== id) {
-        return res.status(409).json({
-          error: 'Conflict',
-          message: 'Email already in use'
-        })
+        return error(res, 'Email already in use', 409)
       }
     }
 
     const user = await prisma.user.update({
       where: { id },
       data: {
-        ...(name && { name }),
-        ...(email && { email })
+        ...(normalizedName && { name: normalizedName }),
+        ...(normalizedEmail && { email: normalizedEmail })
       },
       select: {
         id: true,
@@ -267,16 +233,15 @@ export const updateUser = async (req, res) => {
       }
     })
 
-    res.json({
-      message: 'User updated successfully',
-      data: user
-    })
-  } catch (error) {
-    console.error('Error updating user:', error)
-    res.status(500).json({
-      error: 'Internal Server Error',
-      message: error.message
-    })
+    return success(res, user)
+  } catch (err) {
+    if (!isProduction) {
+      console.error('Error updating user:', err)
+    }
+    if (err.code === 'P2025') {
+      return error(res, 'User not found', 404)
+    }
+    return error(res, 'Internal server error', 500)
   }
 }
 
@@ -287,32 +252,22 @@ export const deleteUser = async (req, res) => {
   try {
     const { id } = req.params
 
-    // Prevent deleting self
     if (req.user.id === id) {
-      return res.status(400).json({
-        error: 'Bad Request',
-        message: 'Cannot delete your own account'
-      })
+      return error(res, 'Cannot delete your own account', 400)
     }
 
     await prisma.user.delete({
       where: { id }
     })
 
-    res.json({
-      message: 'User deleted successfully'
-    })
-  } catch (error) {
-    console.error('Error deleting user:', error)
-    if (error.code === 'P2025') {
-      return res.status(404).json({
-        error: 'Not Found',
-        message: 'User not found'
-      })
+    return success(res, {})
+  } catch (err) {
+    if (!isProduction) {
+      console.error('Error deleting user:', err)
     }
-    res.status(500).json({
-      error: 'Internal Server Error',
-      message: error.message
-    })
+    if (err.code === 'P2025') {
+      return error(res, 'User not found', 404)
+    }
+    return error(res, 'Internal server error', 500)
   }
 }

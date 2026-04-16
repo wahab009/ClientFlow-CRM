@@ -1,41 +1,36 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
-import { useState } from 'react'
+import { Navigate, Route, Routes } from 'react-router-dom'
+import ProtectedRoute from './components/ProtectedRoute'
+import DashboardLayout from './components/DashboardLayout'
+import { useAuth } from './context/AuthContext'
+import Login from './pages/Login'
+import Register from './pages/Register'
 import Dashboard from './pages/Dashboard'
 import Clients from './pages/Clients'
+import Tasks from './pages/Tasks'
 import './App.css'
 
-function App() {
-  const [apiStatus, setApiStatus] = useState(null)
+function HomeRedirect() {
+  const { isAuthenticated } = useAuth()
 
-  const checkApiHealth = async () => {
-    try {
-      const response = await fetch('/api/health')
-      const data = await response.json()
-      setApiStatus(data.message)
-    } catch (error) {
-      console.error('API health check failed:', error)
-      setApiStatus('API unavailable')
-    }
-  }
-
-  return (
-    <Router>
-      <div className="app">
-        <nav className="navbar">
-          <h1>ClientFlow CRM</h1>
-          <button onClick={checkApiHealth}>Check API Status</button>
-          {apiStatus && <p className="status">{apiStatus}</p>}
-        </nav>
-
-        <main className="main-content">
-          <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/clients" element={<Clients />} />
-          </Routes>
-        </main>
-      </div>
-    </Router>
-  )
+  return <Navigate to={isAuthenticated ? '/dashboard' : '/login'} replace />
 }
 
-export default App
+export default function App() {
+  return (
+    <Routes>
+      <Route path="/" element={<HomeRedirect />} />
+      <Route path="/login" element={<Login />} />
+      <Route path="/register" element={<Register />} />
+
+      <Route element={<ProtectedRoute />}>
+        <Route element={<DashboardLayout />}>
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/clients" element={<Clients />} />
+          <Route path="/tasks" element={<Tasks />} />
+        </Route>
+      </Route>
+
+      <Route path="*" element={<HomeRedirect />} />
+    </Routes>
+  )
+}

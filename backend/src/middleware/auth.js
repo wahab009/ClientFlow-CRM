@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken'
 import { config } from '../config/index.js'
+import { error as errorResponse } from '../utils/response.js'
 
 /**
  * Authentication middleware to verify JWT tokens
@@ -9,10 +10,7 @@ export const authenticateToken = (req, res, next) => {
   const token = authHeader && authHeader.split(' ')[1] // Bearer TOKEN
 
   if (!token) {
-    return res.status(401).json({
-      error: 'Unauthorized',
-      message: 'No token provided'
-    })
+    return errorResponse(res, 'No token provided', 401)
   }
 
   try {
@@ -20,10 +18,7 @@ export const authenticateToken = (req, res, next) => {
     req.user = decoded
     next()
   } catch (err) {
-    return res.status(403).json({
-      error: 'Forbidden',
-      message: 'Invalid or expired token'
-    })
+    return errorResponse(res, 'Invalid or expired token', 403)
   }
 }
 
@@ -33,17 +28,11 @@ export const authenticateToken = (req, res, next) => {
 export const authorizeRole = (requiredRoles) => {
   return (req, res, next) => {
     if (!req.user) {
-      return res.status(401).json({
-        error: 'Unauthorized',
-        message: 'User not authenticated'
-      })
+      return errorResponse(res, 'User not authenticated', 401)
     }
 
     if (!requiredRoles.includes(req.user.role)) {
-      return res.status(403).json({
-        error: 'Forbidden',
-        message: 'User does not have required role'
-      })
+      return errorResponse(res, 'User does not have required role', 403)
     }
 
     next()

@@ -1,4 +1,5 @@
 import clientService from '../services/clientService.js'
+import { success, error } from '../utils/response.js'
 
 /**
  * Create new client
@@ -13,13 +14,9 @@ export const createClient = async (req, res) => {
       userId
     )
 
-    res.status(201).json({
-      success: true,
-      message: 'Client created successfully',
-      data: client
-    })
-  } catch (error) {
-    handleServiceError(error, res)
+    return success(res, client, 201)
+  } catch (err) {
+    return handleServiceError(err, res)
   }
 }
 
@@ -33,13 +30,12 @@ export const getAllClients = async (req, res) => {
 
     const result = await clientService.getAllClients(userId, isAdmin, req.query)
 
-    res.json({
-      success: true,
-      message: 'Clients retrieved successfully',
-      ...result
+    return success(res, {
+      clients: result.data,
+      pagination: result.pagination
     })
-  } catch (error) {
-    handleServiceError(error, res)
+  } catch (err) {
+    return handleServiceError(err, res)
   }
 }
 
@@ -54,13 +50,9 @@ export const getClientById = async (req, res) => {
 
     const client = await clientService.getClientById(id, userId, isAdmin)
 
-    res.json({
-      success: true,
-      message: 'Client retrieved successfully',
-      data: client
-    })
-  } catch (error) {
-    handleServiceError(error, res)
+    return success(res, client)
+  } catch (err) {
+    return handleServiceError(err, res)
   }
 }
 
@@ -75,13 +67,9 @@ export const updateClient = async (req, res) => {
 
     const updatedClient = await clientService.updateClient(id, req.body, userId, isAdmin)
 
-    res.json({
-      success: true,
-      message: 'Client updated successfully',
-      data: updatedClient
-    })
-  } catch (error) {
-    handleServiceError(error, res)
+    return success(res, updatedClient)
+  } catch (err) {
+    return handleServiceError(err, res)
   }
 }
 
@@ -96,47 +84,31 @@ export const deleteClient = async (req, res) => {
 
     await clientService.deleteClient(id, userId, isAdmin)
 
-    res.json({
-      success: true,
-      message: 'Client deleted successfully'
-    })
-  } catch (error) {
-    handleServiceError(error, res)
+    return success(res, {})
+  } catch (err) {
+    return handleServiceError(err, res)
   }
 }
 
 /**
  * Helper function to handle service layer errors
- * @param {Error} error - Error thrown by service
+ * @param {Error} err - Error thrown by service
  * @param {Response} res - Express response object
  */
-function handleServiceError(error, res) {
-  const message = error.message || 'Unknown error'
+function handleServiceError(err, res) {
+  const message = err.message || 'Unknown error'
 
   if (message.includes('VALIDATION_ERROR')) {
-    return res.status(400).json({
-      success: false,
-      message: message.replace('VALIDATION_ERROR: ', '')
-    })
+    return error(res, message.replace('VALIDATION_ERROR: ', ''), 400)
   }
 
   if (message === 'CLIENT_NOT_FOUND') {
-    return res.status(404).json({
-      success: false,
-      message: 'Client not found'
-    })
+    return error(res, 'Client not found', 404)
   }
 
-  if (message === 'UNAUTHORIZED') {
-    return res.status(403).json({
-      success: false,
-      message: 'You do not have permission to access this resource'
-    })
+  if (message.includes('UNAUTHORIZED')) {
+    return error(res, 'You do not have permission to access this resource', 403)
   }
 
-  console.error('Client Controller Error:', error)
-  res.status(500).json({
-    success: false,
-    message: 'Internal server error'
-  })
+  return error(res, 'Internal server error', 500)
 }

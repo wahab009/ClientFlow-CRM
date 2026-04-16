@@ -22,28 +22,31 @@ Create a new user account.
 
 **Endpoint:** `POST /api/users/register`
 
+> Security rule: role is always assigned as `USER` by backend. `role` from request payload is ignored.
+
 **Request Body:**
 ```json
 {
   "name": "John Doe",
   "email": "john@example.com",
-  "password": "securePassword123",
-  "role": "USER"
+  "password": "securePassword123"
 }
 ```
 
 **Success Response (201):**
 ```json
 {
-  "message": "User registered successfully",
-  "user": {
-    "id": "uuid",
-    "name": "John Doe",
-    "email": "john@example.com",
-    "role": "USER",
-    "createdAt": "2026-04-13T10:00:00Z"
-  },
-  "token": "eyJhbGciOiJIUzI1NiIsInR5..."
+  "success": true,
+  "data": {
+    "user": {
+      "id": "uuid",
+      "name": "John Doe",
+      "email": "john@example.com",
+      "role": "USER",
+      "createdAt": "2026-04-13T10:00:00Z"
+    },
+    "token": "eyJhbGciOiJIUzI1NiIsInR5..."
+  }
 }
 ```
 
@@ -65,14 +68,16 @@ Authenticate and receive a JWT token.
 **Success Response (200):**
 ```json
 {
-  "message": "Login successful",
-  "user": {
-    "id": "uuid",
-    "name": "John Doe",
-    "email": "john@example.com",
-    "role": "USER"
-  },
-  "token": "eyJhbGciOiJIUzI1NiIsInR5..."
+  "success": true,
+  "data": {
+    "user": {
+      "id": "uuid",
+      "name": "John Doe",
+      "email": "john@example.com",
+      "role": "USER"
+    },
+    "token": "eyJhbGciOiJIUzI1NiIsInR5..."
+  }
 }
 ```
 
@@ -90,7 +95,7 @@ Retrieve the authenticated user's profile.
 **Success Response (200):**
 ```json
 {
-  "message": "Current user",
+  "success": true,
   "data": {
     "id": "uuid",
     "role": "USER"
@@ -553,21 +558,21 @@ All errors follow this standard format:
 
 ```json
 {
-  "error": "Error Type",
+  "success": false,
   "message": "Descriptive error message"
 }
 ```
 
 ### Common Error Codes
 
-| Status | Error | Message |
-|--------|-------|---------|
-| 400 | Bad Request | Missing or invalid required fields |
-| 401 | Unauthorized | No token provided or invalid credentials |
-| 403 | Forbidden | User lacks required permissions |
-| 404 | Not Found | Resource does not exist |
-| 409 | Conflict | Resource already exists (e.g., email in use) |
-| 500 | Internal Server Error | Server error |
+| Status | success | Message |
+|--------|---------|---------|
+| 400 | false | Missing or invalid required fields |
+| 401 | false | No token provided or invalid credentials |
+| 403 | false | User lacks required permissions |
+| 404 | false | Resource does not exist |
+| 409 | false | Resource already exists (e.g., email in use) |
+| 500 | false | Server error |
 
 ### Examples
 
@@ -575,7 +580,7 @@ All errors follow this standard format:
 ```
 401 Unauthorized
 {
-  "error": "Unauthorized",
+  "success": false,
   "message": "No token provided"
 }
 ```
@@ -584,7 +589,7 @@ All errors follow this standard format:
 ```
 403 Forbidden
 {
-  "error": "Forbidden",
+  "success": false,
   "message": "Invalid or expired token"
 }
 ```
@@ -593,7 +598,7 @@ All errors follow this standard format:
 ```
 404 Not Found
 {
-  "error": "Not Found",
+  "success": false,
   "message": "Client not found"
 }
 ```
@@ -609,8 +614,10 @@ PORT=5000
 NODE_ENV=development
 DATABASE_URL=postgresql://user:password@localhost:5432/clientflow_crm
 JWT_SECRET=your-super-secret-jwt-key-change-in-production
-JWT_EXPIRE=7d
+JWT_EXPIRES_IN=7d
 CORS_ORIGIN=http://localhost:3000
+AUTH_RATE_LIMIT_MAX=100
+AUTH_RATE_LIMIT_WINDOW_MS=900000
 ```
 
 ---

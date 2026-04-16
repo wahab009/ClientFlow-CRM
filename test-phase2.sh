@@ -43,18 +43,15 @@ print_result() {
 echo -e "${YELLOW}TEST SUITE 1: Registration & Auth${NC}"
 echo ""
 
-echo "1.1 Register ADMIN user..."
-ADMIN_RESPONSE=$(curl -s -X POST "$API_URL/users/register" \
+echo "1.1 Login seeded ADMIN user..."
+ADMIN_RESPONSE=$(curl -s -X POST "$API_URL/users/login" \
   -H "Content-Type: application/json" \
   -d '{
-    "name": "Test Admin",
-    "email": "admin.test@example.com",
-    "password": "admin123",
-    "role": "ADMIN"
+    "email": "admin@test.com",
+    "password": "admin123"
   }')
 ADMIN_TOKEN=$(echo $ADMIN_RESPONSE | grep -o '"token":"[^"]*' | cut -d'"' -f4)
-ADMIN_ID=$(echo $ADMIN_RESPONSE | grep -o '"id":"[^"]*' | cut -d'"' -f4 | head -1)
-[ ! -z "$ADMIN_TOKEN" ] && echo -e "${GREEN}✅ PASS${NC}: Admin registered, obtained token" || echo -e "${RED}❌ FAIL${NC}: No token received"
+[ ! -z "$ADMIN_TOKEN" ] && echo -e "${GREEN}✅ PASS${NC}: Admin login successful, obtained token" || echo -e "${RED}❌ FAIL${NC}: No token received"
 echo "   Admin Token: ${ADMIN_TOKEN:0:20}..."
 echo ""
 
@@ -64,8 +61,7 @@ USER1_RESPONSE=$(curl -s -X POST "$API_URL/users/register" \
   -d '{
     "name": "Test User One",
     "email": "user1.test@example.com",
-    "password": "user123",
-    "role": "USER"
+    "password": "user123"
   }')
 USER1_TOKEN=$(echo $USER1_RESPONSE | grep -o '"token":"[^"]*' | cut -d'"' -f4)
 USER1_ID=$(echo $USER1_RESPONSE | grep -o '"id":"[^"]*' | cut -d'"' -f4 | head -1)
@@ -79,8 +75,7 @@ USER2_RESPONSE=$(curl -s -X POST "$API_URL/users/register" \
   -d '{
     "name": "Test User Two",
     "email": "user2.test@example.com",
-    "password": "user123",
-    "role": "USER"
+    "password": "user123"
   }')
 USER2_TOKEN=$(echo $USER2_RESPONSE | grep -o '"token":"[^"]*' | cut -d'"' -f4)
 USER2_ID=$(echo $USER2_RESPONSE | grep -o '"id":"[^"]*' | cut -d'"' -f4 | head -1)
@@ -148,8 +143,7 @@ TEMP_USER=$(curl -s -X POST "$API_URL/users/register" \
   -d '{
     "name": "Temp User",
     "email": "temp.user@example.com",
-    "password": "temp123",
-    "role": "USER"
+    "password": "temp123"
   }')
 TEMP_USER_ID=$(echo $TEMP_USER | grep -o '"id":"[^"]*' | cut -d'"' -f4 | head -1)
 DELETE_USER=$(curl -s -w "%{http_code}" -X DELETE "$API_URL/users/$TEMP_USER_ID" \
