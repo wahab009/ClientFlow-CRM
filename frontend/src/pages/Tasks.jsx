@@ -33,6 +33,7 @@ export default function Tasks() {
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [completingTaskId, setCompletingTaskId] = useState('')
   const [error, setError] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
   const [editingTask, setEditingTask] = useState(null)
@@ -183,6 +184,22 @@ export default function Tasks() {
     }
   }
 
+  const handleCompleteTask = async (task) => {
+    const isCompleted = (task.status || '').toLowerCase() === 'completed'
+    if (isCompleted) return
+
+    setCompletingTaskId(task.id)
+    setError('')
+    try {
+      await updateTask(task.id, { status: 'completed' })
+      await loadTaskRows(page, activeFilter)
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Failed to complete task'))
+    } finally {
+      setCompletingTaskId('')
+    }
+  }
+
   return (
     <section>
       <div className="page-header-row">
@@ -230,26 +247,40 @@ export default function Tasks() {
                 <td colSpan="5" className="table-empty">No tasks found</td>
               </tr>
             ) : (
-              tasks.map((task) => (
-                <tr key={task.id}>
-                  <td>{task.title}</td>
-                  <td>{task.client?.name || '-'}</td>
-                  <td>
-                    <span className={`badge badge-${task.status}`}>{task.status}</span>
-                  </td>
-                  <td>{task.priority}</td>
-                  <td>
-                    <div className="row-actions">
-                      <button className="button button-secondary" onClick={() => openEditModal(task)}>
-                        Edit
-                      </button>
-                      <button className="button button-danger" onClick={() => handleDeleteTask(task.id)}>
-                        Delete
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))
+               tasks.map((task) => {
+                const isCompleted = (task.status || '').toLowerCase() === 'completed'
+                const isCompleting = completingTaskId === task.id
+
+                return (
+                  <tr key={task.id}>
+                    <td>{task.title}</td>
+                    <td>{task.client?.name || '-'}</td>
+                    <td>
+                      <span className={`badge badge-${task.status}`}>{task.status}</span>
+                    </td>
+                    <td>{task.priority}</td>
+                    <td>
+                      <div className="row-actions">
+                        {!isCompleted ? (
+                          <button
+                            className="button button-success"
+                            onClick={() => handleCompleteTask(task)}
+                            disabled={isCompleting}
+                          >
+                            {isCompleting ? 'Completing...' : 'Complete'}
+                          </button>
+                        ) : null}
+                        <button className="button button-secondary" onClick={() => openEditModal(task)}>
+                          Edit
+                        </button>
+                        <button className="button button-danger" onClick={() => handleDeleteTask(task.id)}>
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })
             )}
           </tbody>
         </table>

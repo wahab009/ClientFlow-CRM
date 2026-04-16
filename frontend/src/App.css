@@ -173,6 +173,16 @@ a {
   box-shadow: none;
 }
 
+.button-success {
+  background: #16a34a;
+  color: #ffffff;
+  box-shadow: none;
+}
+
+.button-success:hover:not(:disabled) {
+  background: #15803d;
+}
+
 .icon-button {
   border: none;
   background: transparent;
